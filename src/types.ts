@@ -12,6 +12,20 @@ export type SVGSelectionRoot = d3.Selection<
   any
 >
 
+export type NodesSelection<T> = d3.Selection<
+  SVGGElement,
+  d3.HierarchyPointNode<T>,
+  SVGGElement,
+  unknown
+>
+
+export type LinksSelection<T> = d3.Selection<
+  SVGPathElement,
+  d3.HierarchyPointLink<T>,
+  SVGGElement,
+  unknown
+>
+
 export interface ISettings {
   height: number
   id: string
