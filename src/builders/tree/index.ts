@@ -1,16 +1,22 @@
-import { Builder } from '../../types'
-import data from '../data/tree-data'
+import { Builder } from '~/hooks/types'
+
+import data from './data/tree-data'
 import { Tree } from './Tree'
+import { ITreeSettings } from './types'
 
 export interface Person {
   id: string
   name: string
 }
 
-const builder: Builder = (svg, settings) => {
-  new Tree<Person>(svg, data, { nodeTextDataKey: 'name' })
+const builder: Builder = ({ rootSvgSelector, rootGroupSelector }) => {
+  const treeSettings: ITreeSettings<Person> = {
+    rootSvgSelector,
+    rootGroupSelector,
+    nodeTextDataKey: 'name',
+  }
 
-  svg.attr('transform', 'translate(40, 600)')
+  new Tree<Person>(data, treeSettings)
 }
 
 export default builder
