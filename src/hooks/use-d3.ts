@@ -35,7 +35,7 @@ class Settings {
   get rootGroupOrigin() {
     const { x, y } = this.rootGroupRect
     return { x: x + this.padding, y: y + this.padding }
-}
+  }
 
   get rootGroupInnerRect() {
     const { width, height } = this.rootSvgRect
@@ -57,12 +57,47 @@ export default function useD3(builder: Builder, settingOverrides?: ISettings) {
       .attr('height', settings.height)
 
       .append('g')
-      .attr('transform', `translate(${settings.padding}, ${settings.padding})`)
+  }
+
+  function initZoom() {
+    function handleZoom(e: d3.D3ZoomEvent<SVGElement, unknown>) {
+      d3.select(settings.rootGroupSelector).attr(
+        'transform',
+        e.transform.toString()
+      )
+    }
+
+    const zoom = d3.zoom().on('zoom', handleZoom)
+
+    const scaleFactorX =
+      (settings.rootSvgRect.width - 2 * settings.padding) /
+      settings.rootGroupRect.width
+
+    const scaleFactorY =
+      (settings.rootSvgRect.height - 2 * settings.padding) /
+      settings.rootGroupRect.height
+
+    const scaleFactor = Math.min(scaleFactorX, scaleFactorY)
+
+    const translateX = settings.padding
+    const translateY = settings.rootSvgRect.height / 2 + settings.padding
+
+    const initialZoom = d3.zoomIdentity
+      .translate(translateX, translateY)
+      .scale(scaleFactor)
+
+    d3.select(settings.rootSvgSelector)
+      /**
+       * @todo remove any
+       */
+      .call(zoom.transform as any, initialZoom)
+      .call(zoom as any)
   }
 
   function build() {
     initSvg()
     builder(settings)
+    initZoom()
   }
 
   function unmout() {
