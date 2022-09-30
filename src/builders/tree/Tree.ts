@@ -1,49 +1,57 @@
 import * as d3 from 'd3'
 
-import { SVGSelectionRoot, NodesSelection, LinksSelection } from '../../types'
-import {
-  NODE_SIZE,
-  MAX_TEXT_BREADTH,
-  FONT_FAMILY,
-  FONT_SIZE,
-  NODE_PADDING,
-} from './constants'
-
-type INode<Datum> = d3.HierarchyPointNode<Datum>
-type ILink<Datum> = d3.HierarchyPointLink<Datum>
-
-interface Settings<Datum> {
-  nodeTextDataKey: keyof Datum
-}
+import * as params from './constants'
+import { ITreeSettings, INode, ILink } from './types'
 
 export class Tree<Datum extends { id: string }> {
-  svg: {
-    root: SVGSelectionRoot
-    nodes?: NodesSelection<Datum>
-    branches?: LinksSelection<Datum>
-  }
   root: unknown
+
+  selector = {
+    nodes: '.node',
+    branches: '.branch',
+    rootSvg: '',
+    rootGroup: '',
+  }
+
   private tree: INode<Datum>
   private nodeBreadths: Record<string, number>
 
-  constructor(
-    rootSvgGroup: SVGSelectionRoot,
-    data: unknown,
-    settings: Settings<Datum>
-  ) {
-    this.svg = { root: rootSvgGroup }
-
-    // create tree generator to which the root (d3 hierarchy data) is passed
-    const treeGenerator = d3.tree().nodeSize(NODE_SIZE) as d3.TreeLayout<Datum>
+  constructor(data: unknown, settings: ITreeSettings<Datum>) {
+    // create tree generator to which the root (d3 hierarchy data) will be passed
+    const treeGenerator = d3
+      .tree()
+      .nodeSize(params.NODE_SIZE) as d3.TreeLayout<Datum>
 
     // create hierarchy to be passed to the tree generator
     this.root = d3.hierarchy(data)
     this.tree = treeGenerator(this.root as d3.HierarchyNode<Datum>)
 
+    this.selector = {
+      nodes: '.node',
+      branches: '.branch',
+      rootSvg: settings.rootSvgSelector,
+      rootGroup: settings.rootGroupSelector,
+    }
     this.nodeBreadths = {}
 
     this.buildNodes(settings.nodeTextDataKey)
     this.buildBranches()
+  }
+
+  get rootGroupSelection() {
+    return d3.select(this.selector.rootGroup)
+  }
+
+  get nodesSelection() {
+    return d3.selectAll<SVGGElement, d3.HierarchyPointNode<Datum>>(
+      this.selector.nodes
+    )
+  }
+
+  get branchesSelection() {
+    return d3.selectAll<SVGPathElement, d3.HierarchyPointLink<Datum>>(
+      this.selector.branches
+    )
   }
 
   buildNodes(nodeTextDataKey: keyof Datum) {
@@ -51,26 +59,26 @@ export class Tree<Datum extends { id: string }> {
   }
 
   buildNodeGroup() {
-    this.svg.nodes = this.svg.root
+    d3.select(this.selector.rootGroup)
       .selectAll('.node')
       .data(this.tree.descendants())
       .enter()
       .append('g')
       .attr('class', 'node')
+
     return this
   }
 
   buildNodeText(dataKey: keyof Datum) {
-    if (this.svg.nodes) {
-      this.svg.nodes
-        .append('text')
-        .text(d => String(d.data[dataKey]))
-        .attr('y', d => d.x - 4)
-        .attr('x', d => d.y)
-        .attr('font-family', FONT_FAMILY)
-        .attr('font-size', FONT_SIZE)
-        .each(this.registerNodeBreadth.bind(this))
-    }
+    this.nodesSelection
+      .append('text')
+      .text(d => String(d.data[dataKey]))
+      .attr('y', d => d.x - 4)
+      .attr('x', d => d.y)
+      .attr('font-family', params.FONT_FAMILY)
+      .attr('font-size', params.FONT_SIZE)
+      .attr('transform', `translate(${params.NODE_PADDING}, 0)`)
+      .each(this.registerNodeBreadth.bind(this))
 
     return this
   }
@@ -81,28 +89,28 @@ export class Tree<Datum extends { id: string }> {
     elements: SVGTextElement[] | ArrayLike<SVGTextElement>
   ) {
     const textBreadth = Math.ceil(elements[i].getComputedTextLength())
-    const fullBreadth = textBreadth + 2 * NODE_PADDING
+    const fullBreadth = textBreadth + 2 * params.NODE_PADDING
 
     this.nodeBreadths[d.data.id] =
-      fullBreadth <= MAX_TEXT_BREADTH ? fullBreadth : MAX_TEXT_BREADTH
+      fullBreadth <= params.MAX_TEXT_BREADTH
+        ? fullBreadth
+        : params.MAX_TEXT_BREADTH
   }
 
   buildNodeLine() {
-    if (this.svg.nodes) {
-      this.svg.nodes
-        .append('line')
-        .attr('y1', d => d.x)
-        .attr('x1', d => d.y)
-        .attr('y2', d => d.x)
-        .attr('x2', d => d.y + this.nodeBreadths[d.data.id])
-        .attr('stroke', 'red')
-    }
+    this.nodesSelection
+      .append('line')
+      .attr('y1', d => d.x)
+      .attr('x1', d => d.y)
+      .attr('y2', d => d.x)
+      .attr('x2', d => d.y + this.nodeBreadths[d.data.id])
+      .attr('stroke', 'red')
 
     return this
   }
 
   buildBranches() {
-    this.svg.branches = this.svg.root
+    this.rootGroupSelection
       .selectAll('.branch')
       .data(this.tree.links())
       .enter()
